@@ -1,0 +1,285 @@
+{% extends 'base.html' %}
+
+{% block title %}Экспонаты музея - Школьный музей{% endblock %}
+
+{% block content %}
+<!-- Заголовок и статистика -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1 class="mb-3">
+            <i class="fas fa-box-open"></i> Коллекция музея
+        </h1>
+        <p class="lead">Виртуальная экспозиция школьного музея. Всего экспонатов: <strong>{{ page_obj.paginator.count }}</strong></p>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-light">
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-4">
+                       <h4 class="text-primary">{{ page_obj.paginator.count }}</h4>
+                        <small class="text-muted">Всего</small>
+                    </div>
+                    <div class="col-4">
+                       <h4 class="text-success">{{ featured_count }}</h4>
+                        <small class="text-muted">Избранные</small>
+                    </div>
+                    <div class="col-4">
+                        <h4 class="text-info">{{ categories|length }}</h4>
+                        <small class="text-muted">Категорий</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Фильтры и поиск -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <h5 class="card-title"><i class="fas fa-filter"></i> Фильтры</h5>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="{% url 'museum:exhibit_list' %}" 
+                       class="btn btn-sm {% if not selected_category and not selected_tag %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                        Все
+                    </a>
+                    
+                    {% for category in categories %}
+                    <a href="{% url 'museum:exhibit_list' %}?category={{ category.id }}" 
+                       class="btn btn-sm {% if selected_category == category.id %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                        <i class="{{ category.icon|default:'fas fa-folder' }}"></i> {{ category.name }}
+                        <span class="badge bg-secondary">{{ category.exhibit_set.count }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="col-md-4">
+                <h5 class="card-title"><i class="fas fa-tags"></i> Популярные теги</h5>
+                <div class="d-flex flex-wrap gap-1">
+                    {% for tag in popular_tags %}
+                    <a href="{% url 'museum:exhibit_list' %}?tag={{ tag|urlencode }}" 
+                       class="badge bg-info text-decoration-none">
+                        {{ tag }}
+                    </a>
+                    {% empty %}
+                    <small class="text-muted">Тегов пока нет</small>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Расширенный поиск -->
+        <div class="mt-3">
+            <form method="get" class="row g-2">
+                <div class="col-md-4">
+                    <input type="text" class="form-control form-control-sm" name="q" 
+                           placeholder="Поиск по названию, описанию..." value="{{ search_query }}">
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select form-control-sm" name="category">
+                        <option value="">Все категории</option>
+                        {% for category in categories %}
+                        <option value="{{ category.id }}" {% if selected_category == category.id %}selected{% endif %}>
+                            {{ category.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <input type="text" class="form-control form-control-sm" name="tag" 
+                           placeholder="Тег..." value="{{ selected_tag }}">
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                        <i class="fas fa-search"></i> Искать
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Сетка экспонатов -->
+{% if exhibits %}
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
+    {% for exhibit in exhibits %}
+    <div class="col">
+        <div class="card museum-card h-100">
+            <!-- Бейджи статуса -->
+            {% if exhibit.is_featured %}
+            <span class="badge featured-badge status-badge">
+                <i class="fas fa-star"></i> Избранное
+            </span>
+            {% endif %}
+            
+            <!-- Изображение -->
+            {% with exhibit.get_primary_photo as primary_photo %}
+            <a href="{% url 'museum:exhibit_detail' exhibit.pk %}">
+                {% if primary_photo %}
+                <img src="{{ primary_photo.photo.url }}" class="card-img-top" 
+                     alt="{{ exhibit.title }}" style="height: 200px; object-fit: cover;">
+                {% else %}
+                <div class="card-img-top d-flex align-items-center justify-content-center bg-light" 
+                     style="height: 200px;">
+                    <i class="fas fa-image fa-3x text-muted"></i>
+                </div>
+                {% endif %}
+            </a>
+            {% endwith %}
+            
+            <!-- Содержимое карточки -->
+            <div class="card-body d-flex flex-column">
+                <h5 class="card-title">
+                    <a href="{% url 'museum:exhibit_detail' exhibit.pk %}" class="text-decoration-none text-dark">
+                        {{ exhibit.title|truncatechars:50 }}
+                    </a>
+                </h5>
+                
+                <p class="card-text flex-grow-1">
+                    {{ exhibit.short_description|default:exhibit.description|truncatechars:100 }}
+                </p>
+                
+                <div class="mt-auto">
+                    <!-- Категория -->
+                    {% if exhibit.category %}
+                    <a href="{% url 'museum:exhibit_list' %}?category={{ exhibit.category.id }}" 
+                       class="badge bg-primary text-decoration-none">
+                        <i class="{{ exhibit.category.icon|default:'fas fa-folder' }}"></i> 
+                        {{ exhibit.category.name }}
+                    </a>
+                    {% endif %}
+                    
+                    <!-- Теги -->
+                    {% if exhibit.tags %}
+                    <div class="mt-2">
+                        {% for tag in exhibit.tags|slice:":3" %}
+                        <a href="{% url 'museum:exhibit_list' %}?tag={{ tag|urlencode }}" 
+                           class="badge bg-light text-dark text-decoration-none me-1">
+                            #{{ tag|truncatechars:15 }}
+                        </a>
+                        {% endfor %}
+                        {% if exhibit.tags|length > 3 %}
+                        <span class="badge bg-light text-dark">+{{ exhibit.tags|length|add:"-3" }}</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Мета-информация -->
+                    <div class="exhibit-meta mt-2">
+                        <small>
+                            <i class="fas fa-calendar-alt"></i> {{ exhibit.created_at|date:"d.m.Y" }}
+                            {% if exhibit.acquisition_date %}
+                            <span class="ms-2">
+                                <i class="fas fa-history"></i> {{ exhibit.acquisition_date|date:"Y" }} г.
+                            </span>
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Футер карточки -->
+            <div class="card-footer bg-white border-0 pt-0">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="badge bg-secondary">
+                            <i class="fas fa-hashtag"></i> {{ exhibit.inventory_number }}
+                        </span>
+                    </div>
+                    <a href="{% url 'museum:exhibit_detail' exhibit.pk %}" 
+                       class="btn btn-sm btn-outline-primary">
+                        Подробнее <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Пагинация -->
+{% if page_obj.has_other_pages %}
+<nav aria-label="Навигация по страницам" class="mt-5">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}">
+                <i class="fas fa-chevron-left"></i> Назад
+            </a>
+        </li>
+        {% endif %}
+        
+        {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active">
+                <span class="page-link">{{ num }}</span>
+            </li>
+            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ num }}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}">
+                    {{ num }}
+                </a>
+            </li>
+            {% endif %}
+        {% endfor %}
+        
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}">
+                Вперед <i class="fas fa-chevron-right"></i>
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+    <p class="text-center text-muted small mt-2">
+        Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}
+    </p>
+</nav>
+{% endif %}
+
+{% else %}
+<!-- Если нет экспонатов -->
+<div class="text-center py-5">
+    <div class="mb-4">
+        <i class="fas fa-box-open fa-4x text-muted"></i>
+    </div>
+    <h3 class="text-muted">Экспонаты не найдены</h3>
+    <p class="text-muted">
+        {% if search_query or selected_category or selected_tag %}
+        Попробуйте изменить критерии поиска или <a href="{% url 'museum:exhibit_list' %}">показать все экспонаты</a>.
+        {% else %}
+        В музее пока нет экспонатов. Добавьте их через <a href="/admin/">административную панель</a>.
+        {% endif %}
+    </p>
+</div>
+{% endif %}
+
+<!-- Быстрые ссылки -->
+<div class="row mt-5">
+    <div class="col-md-6">
+        <div class="card bg-light">
+            <div class="card-body text-center">
+                <i class="fas fa-images fa-3x text-primary mb-3"></i>
+                <h5>Посмотреть все категории</h5>
+                <p class="text-muted">Изучите коллекцию по категориям</p>
+                <a href="{% url 'museum:category_list' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-th-list"></i> Все категории
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card bg-light">
+            <div class="card-body text-center">
+                <i class="fas fa-star fa-3x text-warning mb-3"></i>
+                <h5>Избранные экспонаты</h5>
+                <p class="text-muted">Самые интересные экспонаты музея</p>
+                <a href="{% url 'museum:exhibit_list' %}?is_featured=true" class="btn btn-outline-warning">
+                    <i class="fas fa-star"></i> Избранное
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

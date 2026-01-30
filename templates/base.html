@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Школьный музей{% endblock %}</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding-top: 76px;
+            background-color: #f8f9fa;
+        }
+        
+        .navbar-brand {
+            font-weight: 700;
+            color: var(--primary-color) !important;
+        }
+        
+        .museum-card {
+            transition: all 0.3s ease;
+            border: none;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            height: 100%;
+        }
+        
+        .museum-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        }
+        
+        .card-img-top {
+            height: 200px;
+            object-fit: cover;
+        }
+        
+        .category-badge {
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+        }
+        
+        .status-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1;
+        }
+        
+        .featured-badge {
+            background-color: var(--accent-color);
+        }
+        
+        footer {
+            margin-top: 50px;
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .search-box {
+            max-width: 400px;
+        }
+        
+        .exhibit-meta {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        
+        .icon-sm {
+            font-size: 0.9rem;
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Навигация -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white fixed-top shadow-sm">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'museum:exhibit_list' %}">
+                <i class="fas fa-landmark"></i> Школьный музей
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'museum:exhibit_list' %}">
+                            <i class="fas fa-home"></i> Главная
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'museum:category_list' %}">
+                            <i class="fas fa-th-list"></i> Категории
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="collectionsDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-images"></i> Коллекции
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'museum:exhibit_list' %}?category=1">
+                                <i class="fas fa-file-alt"></i> Документы
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'museum:exhibit_list' %}?category=2">
+                                <i class="fas fa-camera"></i> Фотографии
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'museum:exhibit_list' %}">
+                                <i class="fas fa-star"></i> Все экспонаты
+                            </a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">
+                            <i class="fas fa-history"></i> О музее
+                        </a>
+                    </li>
+                </ul>
+                
+                <!-- Поиск -->
+                <form class="d-flex search-box me-3" action="{% url 'museum:exhibit_list' %}" method="get">
+                    <div class="input-group">
+                        <input type="text" class="form-control" name="q" placeholder="Поиск экспонатов..." 
+                               value="{{ request.GET.q|default:'' }}">
+                        <button class="btn btn-outline-primary" type="submit">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </form>
+                
+                <!-- Авторизация -->
+                <ul class="navbar-nav">
+                    {% if user.is_authenticated %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-user-circle"></i> {{ user.username }}
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                {% if user.is_staff %}
+                                    <li><a class="dropdown-item" href="/admin/">
+                                        <i class="fas fa-cog"></i> Администрирование
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                {% endif %}
+                                <li><a class="dropdown-item" href="#">
+                                    <i class="fas fa-user"></i> Мой профиль
+                                </a></li>
+                                <li><a class="dropdown-item" href="#">
+                                    <i class="fas fa-sign-out-alt"></i> Выйти
+                                </a></li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="btn btn-outline-primary btn-sm" href="/admin/">
+                                <i class="fas fa-sign-in-alt"></i> Войти
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Сообщения -->
+    <div class="container mt-3">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    <!-- Основное содержимое -->
+    <main class="container py-4">
+        {% block content %}
+        <!-- Сюда будет подставляться контент страниц -->
+        {% endblock %}
+    </main>
+
+    <!-- Подвал -->
+    <footer class="py-4">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <h5><i class="fas fa-landmark"></i> Школьный музей</h5>
+                    <p class="small">Виртуальная коллекция экспонатов школьного музея. Сохраняем историю для будущих поколений.</p>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <h5>Быстрые ссылки</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="{% url 'museum:exhibit_list' %}" class="text-white-50">Главная</a></li>
+                        <li><a href="{% url 'museum:category_list' %}" class="text-white-50">Категории</a></li>
+                        <li><a href="#" class="text-white-50">О проекте</a></li>
+                        <li><a href="/admin/" class="text-white-50">Администрирование</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <h5>Контакты</h5>
+                    <p class="small mb-1"><i class="fas fa-school"></i> МБОУ "Школа №..."</p>
+                    <p class="small mb-1"><i class="fas fa-map-marker-alt"></i> г. Москва, ул. Школьная, 1</p>
+                    <p class="small mb-1"><i class="fas fa-envelope"></i> museum@school.edu</p>
+                </div>
+            </div>
+            <hr class="bg-light">
+            <div class="text-center">
+                <p class="small mb-0">
+                    &copy; {% now "Y" %} Школьный музей. Виртуальная база данных. 
+                    <span class="text-white-50">Всего экспонатов: {{ exhibit_count|default:0 }}</span>
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Кастомные скрипты -->
+    <script>
+        // Автоматическое скрытие сообщений через 5 секунд
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                var alerts = document.querySelectorAll('.alert');
+                alerts.forEach(function(alert) {
+                    var bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                });
+            }, 5000);
+        });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

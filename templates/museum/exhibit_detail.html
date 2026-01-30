@@ -1,0 +1,363 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ exhibit.title }} - Школьный музей{% endblock %}
+
+{% block extra_css %}
+<style>
+    .exhibit-gallery {
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .main-photo {
+        height: 400px;
+        object-fit: contain;
+        background-color: #f8f9fa;
+    }
+    
+    .thumbnail {
+        width: 80px;
+        height: 80px;
+        object-fit: cover;
+        cursor: pointer;
+        border: 2px solid transparent;
+        transition: all 0.2s;
+    }
+    
+    .thumbnail:hover, .thumbnail.active {
+        border-color: #3498db;
+        transform: scale(1.05);
+    }
+    
+    .info-card {
+        border-left: 4px solid #3498db;
+    }
+    
+    .document-item {
+        border-left: 3px solid #2ecc71;
+    }
+    
+    .specs-table td {
+        padding: 8px 0;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .specs-table tr:last-child td {
+        border-bottom: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Хлебные крошки -->
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'museum:exhibit_list' %}">Главная</a></li>
+        {% if exhibit.category %}
+        <li class="breadcrumb-item">
+            <a href="{% url 'museum:exhibit_list' %}?category={{ exhibit.category.id }}">
+                {{ exhibit.category.name }}
+            </a>
+        </li>
+        {% endif %}
+        <li class="breadcrumb-item active" aria-current="page">{{ exhibit.title|truncatechars:30 }}</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <!-- Левая колонка - фотографии -->
+    <div class="col-lg-8">
+        <div class="card exhibit-gallery mb-4">
+            <div class="card-body">
+                <!-- Главное фото -->
+                {% if photos %}
+                <div class="text-center mb-3">
+                    <img id="mainPhoto" src="{{ photos.0.photo.url }}" 
+                         class="img-fluid main-photo" alt="{{ exhibit.title }}">
+                </div>
+                
+                <!-- Миниатюры -->
+                <div class="d-flex flex-wrap gap-2 justify-content-center">
+                    {% for photo in photos %}
+                    <img src="{{ photo.photo.url }}" 
+                         class="thumbnail {% if forloop.first %}active{% endif %}"
+                         data-full="{{ photo.photo.url }}"
+                         alt="{{ photo.title|default:'Фото экспоната' }}"
+                         onclick="changeMainPhoto(this)">
+                    {% endfor %}
+                </div>
+                {% else %}
+                <!-- Если нет фото -->
+                <div class="text-center py-5">
+                    <i class="fas fa-image fa-5x text-muted mb-3"></i>
+                    <p class="text-muted">Фотографии отсутствуют</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Описание экспоната -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-info-circle"></i> Описание</h4>
+            </div>
+            <div class="card-body">
+                {{ exhibit.description|linebreaks }}
+                
+                {% if exhibit.historical_context %}
+                <hr>
+                <h5><i class="fas fa-history"></i> Исторический контекст</h5>
+                <p>{{ exhibit.historical_context|linebreaks }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Правая колонка - информация -->
+    <div class="col-lg-4">
+        <!-- Основная информация -->
+        <div class="card info-card mb-4">
+            <div class="card-body">
+                <h3 class="card-title">{{ exhibit.title }}</h3>
+                
+                {% if exhibit.short_description %}
+                <p class="lead">{{ exhibit.short_description }}</p>
+                {% endif %}
+                
+                <div class="mb-3">
+                    {% if exhibit.category %}
+                    <span class="badge bg-primary">
+                        <i class="{{ exhibit.category.icon|default:'fas fa-folder' }}"></i> 
+                        {{ exhibit.category.name }}
+                    </span>
+                    {% endif %}
+                    
+                    {% if exhibit.is_featured %}
+                    <span class="badge bg-warning">
+                        <i class="fas fa-star"></i> Избранное
+                    </span>
+                    {% endif %}
+                    
+                    <span class="badge bg-secondary">
+                        <i class="fas fa-hashtag"></i> {{ exhibit.inventory_number }}
+                    </span>
+                </div>
+                
+                <!-- Теги (исправленная версия без фильтра split) -->
+                {% if exhibit.tags %}
+                <div class="mb-3">
+                    <h6><i class="fas fa-tags"></i> Ключевые слова:</h6>
+                    {% comment %} Простой вариант без использования split фильтра {% endcomment %}
+                    {% with tags_list=exhibit.tags %}
+                        {% if "," in tags_list %}
+                            {% for tag in tags_list.split %}
+                                {% if tag.strip %}
+                                <a href="{% url 'museum:exhibit_list' %}?tag={{ tag.strip|urlencode }}" 
+                                   class="badge bg-light text-dark text-decoration-none me-1 mb-1">
+                                    #{{ tag.strip }}
+                                </a>
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <a href="{% url 'museum:exhibit_list' %}?tag={{ tags_list|urlencode }}" 
+                               class="badge bg-light text-dark text-decoration-none me-1 mb-1">
+                                #{{ tags_list }}
+                            </a>
+                        {% endif %}
+                    {% endwith %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Технические характеристики -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-ruler-combined"></i> Характеристики</h5>
+            </div>
+            <div class="card-body">
+                <table class="table specs-table">
+                    {% if exhibit.author %}
+                    <tr>
+                        <td width="40%"><strong>Автор:</strong></td>
+                        <td>{{ exhibit.author }}</td>
+                    </tr>
+                    {% endif %}
+                    
+                    {% if exhibit.creation_date %}
+                    <tr>
+                        <td><strong>Дата создания:</strong></td>
+                        <td>{{ exhibit.creation_date }}</td>
+                    </tr>
+                    {% endif %}
+                    
+                    {% if exhibit.acquisition_date %}
+                    <tr>
+                        <td><strong>Дата поступления:</strong></td>
+                        <td>{{ exhibit.acquisition_date|date:"d.m.Y" }}</td>
+                    </tr>
+                    {% endif %}
+                    
+                    {% if exhibit.acquisition_source %}
+                    <tr>
+                        <td><strong>Источник:</strong></td>
+                        <td>{{ exhibit.acquisition_source }}</td>
+                    </tr>
+                    {% endif %}
+                    
+                    {% if exhibit.size %}
+                    <tr>
+                        <td><strong>Размеры:</strong></td>
+                        <td>{{ exhibit.size }}</td>
+                    </tr>
+                    {% endif %}
+                    
+                    {% if exhibit.material %}
+                    <tr>
+                        <td><strong>Материал:</strong></td>
+                        <td>{{ exhibit.material }}</td>
+                    </tr>
+                    {% endif %}
+                    
+                    {% if exhibit.condition %}
+                    <tr>
+                        <td><strong>Состояние:</strong></td>
+                        <td>{{ exhibit.condition|truncatechars:100 }}</td>
+                    </tr>
+                    {% endif %}
+                    
+                    {% if exhibit.storage_location %}
+                    <tr>
+                        <td><strong>Место хранения:</strong></td>
+                        <td>{{ exhibit.storage_location }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+        
+        <!-- Документы -->
+        {% if documents %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-file-alt"></i> Документы ({{ documents|length }})</h5>
+            </div>
+            <div class="card-body">
+                {% for doc in documents %}
+                <div class="document-item mb-3 p-3 bg-light rounded">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="mb-1">{{ doc.title }}</h6>
+                            <small class="text-muted">
+                                <i class="fas fa-file"></i> {{ doc.get_document_type_display }}
+                                • {{ doc.upload_date|date:"d.m.Y" }}
+                            </small>
+                        </div>
+                        <a href="{{ doc.document.url }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                            <i class="fas fa-download"></i>
+                        </a>
+                    </div>
+                    {% if doc.description %}
+                    <p class="small mt-2 mb-0">{{ doc.description }}</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Административная информация -->
+        {% if user.is_staff %}
+        <div class="card border-warning">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0"><i class="fas fa-cog"></i> Администрирование</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="/admin/museum/exhibit/{{ exhibit.id }}/change/" 
+                       class="btn btn-warning btn-sm">
+                        <i class="fas fa-edit"></i> Редактировать
+                    </a>
+                    <a href="/admin/museum/exhibit/add/" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-plus"></i> Добавить похожий
+                    </a>
+                </div>
+                <div class="mt-3 small text-muted">
+                    <p class="mb-1"><i class="fas fa-user"></i> Создал: {{ exhibit.created_by|default:"Неизвестно" }}</p>
+                    <p class="mb-1"><i class="fas fa-calendar"></i> Создан: {{ exhibit.created_at|date:"d.m.Y H:i" }}</p>
+                    <p class="mb-0"><i class="fas fa-history"></i> Обновлен: {{ exhibit.updated_at|date:"d.m.Y H:i" }}</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Похожие экспонаты -->
+{% if similar_exhibits %}
+<div class="row mt-5">
+    <div class="col-12">
+        <h3 class="mb-4"><i class="fas fa-random"></i> Похожие экспонаты</h3>
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-4">
+            {% for similar in similar_exhibits %}
+            <div class="col">
+                <div class="card h-100">
+                    {% with similar.get_primary_photo as photo %}
+                    {% if photo %}
+                    <img src="{{ photo.photo.url }}" class="card-img-top" 
+                         alt="{{ similar.title }}" style="height: 150px; object-fit: cover;">
+                    {% else %}
+                    <div class="card-img-top bg-light d-flex align-items-center justify-content-center" 
+                         style="height: 150px;">
+                        <i class="fas fa-image text-muted"></i>
+                    </div>
+                    {% endif %}
+                    {% endwith %}
+                    
+                    <div class="card-body">
+                        <h6 class="card-title">
+                            <a href="{% url 'museum:exhibit_detail' similar.pk %}" class="text-decoration-none">
+                                {{ similar.title|truncatechars:40 }}
+                            </a>
+                        </h6>
+                        <small class="text-muted">{{ similar.inventory_number }}</small>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function changeMainPhoto(thumb) {
+        // Меняем главное фото
+        document.getElementById('mainPhoto').src = thumb.dataset.full;
+        
+        // Убираем активный класс у всех миниатюр
+        document.querySelectorAll('.thumbnail').forEach(function(t) {
+            t.classList.remove('active');
+        });
+        
+        // Добавляем активный класс к выбранной миниатюре
+        thumb.classList.add('active');
+    }
+    
+    // Инициализация галереи
+    document.addEventListener('DOMContentLoaded', function() {
+        // Если есть миниатюры, подписываемся на клик
+        const thumbs = document.querySelectorAll('.thumbnail');
+        if (thumbs.length > 0) {
+            thumbs.forEach(function(thumb) {
+                thumb.addEventListener('click', function() {
+                    changeMainPhoto(this);
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}

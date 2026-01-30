@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ category.name }} - Школьный музей{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'museum:exhibit_list' %}">Главная</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'museum:category_list' %}">Категории</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ category.name }}</li>
+    </ol>
+</nav>
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1>
+            <i class="{{ category.icon|default:'fas fa-folder' }}"></i> {{ category.name }}
+        </h1>
+        {% if category.description %}
+        <p class="lead">{{ category.description }}</p>
+        {% endif %}
+    </div>
+    <div class="col-md-4 text-end">
+        <a href="{% url 'museum:exhibit_list' %}?category={{ category.id }}" 
+           class="btn btn-outline-primary">
+            <i class="fas fa-list"></i> Все экспонаты категории
+        </a>
+    </div>
+</div>
+
+{% if exhibits %}
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+    {% for exhibit in exhibits %}
+    <div class="col">
+        <div class="card h-100">
+            {% with exhibit.get_primary_photo as photo %}
+            {% if photo %}
+            <img src="{{ photo.photo.url }}" class="card-img-top" 
+                 alt="{{ exhibit.title }}" style="height: 180px; object-fit: cover;">
+            {% else %}
+            <div class="card-img-top bg-light d-flex align-items-center justify-content-center" 
+                 style="height: 180px;">
+                <i class="fas fa-image fa-2x text-muted"></i>
+            </div>
+            {% endif %}
+            {% endwith %}
+            
+            <div class="card-body">
+                <h5 class="card-title">
+                    <a href="{% url 'museum:exhibit_detail' exhibit.pk %}" class="text-decoration-none">
+                        {{ exhibit.title|truncatechars:50 }}
+                    </a>
+                </h5>
+                <p class="card-text">
+                    {{ exhibit.short_description|default:exhibit.description|truncatechars:100 }}
+                </p>
+                <div class="mt-3">
+                    <span class="badge bg-secondary">
+                        <i class="fas fa-hashtag"></i> {{ exhibit.inventory_number }}
+                    </span>
+                </div>
+            </div>
+            <div class="card-footer bg-white">
+                <a href="{% url 'museum:exhibit_detail' exhibit.pk %}" 
+                   class="btn btn-sm btn-outline-primary w-100">
+                    Подробнее
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Пагинация -->
+{% if page_obj.has_other_pages %}
+<nav aria-label="Навигация по страницам" class="mt-5">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                <i class="fas fa-chevron-left"></i> Назад
+            </a>
+        </li>
+        {% endif %}
+        
+        {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active">
+                <span class="page-link">{{ num }}</span>
+            </li>
+            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+            </li>
+            {% endif %}
+        {% endfor %}
+        
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                Вперед <i class="fas fa-chevron-right"></i>
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<div class="text-center py-5">
+    <i class="fas fa-box-open fa-4x text-muted mb-3"></i>
+    <h3 class="text-muted">В этой категории пока нет экспонатов</h3>
+    <p class="text-muted">Добавьте экспонаты через административную панель</p>
+    <a href="/admin/museum/exhibit/add/" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Добавить экспонат
+    </a>
+</div>
+{% endif %}
+{% endblock %}
